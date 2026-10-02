@@ -1,0 +1,9 @@
+.env
+.venv
+.git
+data/ai_cache.json
+data/*.csv
+eval/*.jsonl
+**/__pycache__
+eval
+demo

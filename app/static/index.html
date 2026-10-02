@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GiDA İçerik Analizi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#ECF0F3; --surface:#FFFFFF; --ink:#0F2A3D; --mute:#5B6B79; --line:#D5DDE3;
+  --brand:#0E7C86; --brand-soft:#D7EEF0;
+  --crit:#C0262D; --high:#C8601A; --med:#A67C00; --low:#61748A;
+  --ok:#1E7F4E; --warn:#A35E00; --err:#B42318;
+  --bar-raw:#B9C6D0; --bar:#0E7C86;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0E1820; --surface:#15222C; --ink:#E4ECF1; --mute:#93A4B1; --line:#263744;
+  --brand:#3DB8C2; --brand-soft:#16363B;
+  --crit:#F0626A; --high:#F0904E; --med:#E0B83A; --low:#93A6BA;
+  --ok:#4CC08A; --warn:#E6A34A; --err:#F2766C; --bar-raw:#33495A; --bar:#3DB8C2;}}
+:root[data-theme="dark"]{
+  --bg:#0E1820; --surface:#15222C; --ink:#E4ECF1; --mute:#93A4B1; --line:#263744;
+  --brand:#3DB8C2; --brand-soft:#16363B;
+  --crit:#F0626A; --high:#F0904E; --med:#E0B83A; --low:#93A6BA;
+  --ok:#4CC08A; --warn:#E6A34A; --err:#F2766C; --bar-raw:#33495A; --bar:#3DB8C2;}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "IBM Plex Sans",system-ui,sans-serif;font-variant-numeric:tabular-nums}
+.wrap{max-width:1080px;margin:0 auto;padding:28px 16px 64px}
+button,select,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+
+header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:24px}
+h1{font-size:26px;line-height:1.2;margin:0 0 4px;font-weight:700;letter-spacing:-.01em}
+.lede{margin:0;color:var(--mute);max-width:60ch}
+.chip{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 12px;font-size:13px;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--mute)}
+.chip.on .dot{background:var(--ok)} .chip.off .dot{background:var(--warn)}
+
+/* drop zone */
+.drop{display:block;border:2px dashed var(--line);border-radius:14px;background:var(--surface);padding:44px 20px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s}
+.drop:hover,.drop.over{border-color:var(--brand);background:var(--brand-soft)}
+.drop strong{display:block;font-size:19px;margin-bottom:4px}
+.drop span{color:var(--mute);font-size:14px}
+.drop input{display:none}
+.drop.compact{padding:14px 18px;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.drop.compact strong{font-size:15px;margin:0}
+.under{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:10px 2px 0;font-size:14px;color:var(--mute)}
+.under label{display:inline-flex;gap:8px;align-items:center;cursor:pointer}
+.linkbtn{background:none;border:0;padding:0;color:var(--brand);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:7px 12px;cursor:pointer;font-size:14px}
+.btn:hover{border-color:var(--brand)}
+
+/* pipeline */
+section{margin-top:28px}
+h2{font-size:17px;margin:0 0 4px;font-weight:600}
+.hint{color:var(--mute);font-size:13px;margin:0 0 14px}
+.pipe{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 18px 8px}
+.stage{display:grid;grid-template-columns:180px 1fr 150px;gap:14px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line);opacity:.35;transition:opacity .3s}
+.stage:last-child{border-bottom:0}
+.stage.live{opacity:1}
+.stage.active .sname::after{content:"";display:inline-block;width:6px;height:6px;margin-left:8px;border-radius:50%;background:var(--brand);animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.2}}
+.sname{font-weight:600;font-size:14px}
+.sname small{display:block;font-weight:400;color:var(--mute);font-size:12px}
+.track{height:12px;background:var(--bg);border-radius:6px;overflow:hidden}
+.fill{height:100%;width:0;background:var(--bar);border-radius:6px;transition:width .7s cubic-bezier(.2,.8,.2,1)}
+.stage:first-child .fill{background:var(--bar-raw)}
+.sval{text-align:right;font-size:14px}
+.sval b{font-weight:600}
+.sval small{display:block;color:var(--mute);font-size:12px}
+.callout{margin:14px 0 6px;padding:12px 14px;border-radius:10px;background:var(--brand-soft);font-size:14px}
+.callout b{font-weight:700}
+
+/* banner */
+.banner{margin-top:14px;border-radius:10px;padding:12px 14px;font-size:14px;border:1px solid;display:flex;gap:10px;align-items:flex-start}
+.banner.ok{border-color:color-mix(in srgb,var(--ok) 40%,transparent);background:color-mix(in srgb,var(--ok) 9%,var(--surface))}
+.banner.quota,.banner.off,.banner.partial{border-color:color-mix(in srgb,var(--warn) 45%,transparent);background:color-mix(in srgb,var(--warn) 10%,var(--surface))}
+.banner.error{border-color:color-mix(in srgb,var(--err) 45%,transparent);background:color-mix(in srgb,var(--err) 9%,var(--surface))}
+.banner b{display:block}
+
+/* summary */
+.sum{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.sum>div{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.sum b{display:block;font-size:22px;font-weight:700;line-height:1.2;word-break:break-word}
+.sum span{font-size:13px;color:var(--mute)}
+.sevbar{display:flex;height:8px;border-radius:4px;overflow:hidden;margin-top:8px;background:var(--bg)}
+.sevbar i{display:block;height:100%}
+
+/* findings */
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0 12px}
+.filters select,.filters input{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:14px}
+.filters input{flex:1;min-width:150px}
+.list{display:flex;flex-direction:column;gap:8px}
+.f{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--sev);border-radius:10px;padding:12px 14px}
+.f summary{list-style:none;cursor:pointer}
+.f summary::-webkit-details-marker{display:none}
+.ftop{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;font-size:13px;color:var(--mute)}
+.sev{font-size:12px;font-weight:600;color:var(--sev);border:1px solid var(--sev);border-radius:999px;padding:0 9px}
+.cat{font-weight:600;color:var(--ink);font-size:14px}
+.src{font-size:12px;border-radius:6px;padding:1px 7px;background:var(--bg);color:var(--ink)}
+.src.ai,.src.ikisi{background:var(--brand-soft)}
+.ftext{margin-top:6px;font-size:15px;word-break:break-word}
+mark{background:color-mix(in srgb,var(--sev) 24%,transparent);color:inherit;border-radius:3px;padding:0 2px}
+.why{margin-top:4px;font-size:14px}
+.fmeta{margin-top:4px;font-size:12px;color:var(--mute)}
+.ctx{margin-top:10px;font-size:12px;line-height:1.55;color:var(--mute);background:var(--bg);border-radius:8px;padding:9px 11px;white-space:pre-wrap;word-break:break-word}
+.empty{color:var(--mute);text-align:center;padding:28px;background:var(--surface);border:1px dashed var(--line);border-radius:10px}
+.err{margin-top:16px;border-radius:10px;padding:12px 14px;background:color-mix(in srgb,var(--err) 10%,var(--surface));border:1px solid color-mix(in srgb,var(--err) 45%,transparent);font-size:14px}
+.hidden{display:none!important}
+.foot{margin-top:36px;font-size:12px;color:var(--mute)}
+
+@media (max-width:720px){
+  .stage{grid-template-columns:1fr auto;grid-template-areas:"n v" "t t";row-gap:6px}
+  .sname{grid-area:n}.sval{grid-area:v}.track{grid-area:t}
+  .sum{grid-template-columns:repeat(2,1fr)}
+  h1{font-size:22px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div>
+    <h1>GiDA İçerik Analizi</h1>
+    <p class="lede">Cihazlardan toplanan ekran metinlerini içeren CSV dosyasını bırakın. Sistem arayüz gürültüsünü ayıklar, kalan içeriği kural motoru ve yapay zekâ ile tarar, veliye gösterilecek bulguları listeler.</p>
+  </div>
+  <div class="chip" id="aiChip"><span class="dot"></span><span id="aiChipText">AI durumu kontrol ediliyor</span></div>
+</header>
+
+<label class="drop" id="drop" tabindex="0">
+  <input type="file" id="file" accept=".csv,text/csv">
+  <strong id="dropTitle">CSV dosyasını buraya sürükleyin</strong>
+  <span id="dropSub">ya da dosya seçmek için tıklayın · en fazla 20 MB</span>
+</label>
+<div class="under">
+  <label><input type="checkbox" id="useAi" checked> Yapay zekâ katmanını kullan</label>
+</div>
+
+<div class="err hidden" id="err" role="alert"></div>
+
+<section class="hidden" id="pipeSec">
+  <h2>Veri hattı</h2>
+  <p class="hint">Her aşamada kalan metin miktarı. Yapay zekâya ham verinin yalnızca küçük bir kısmı gider.</p>
+  <div class="pipe" id="pipe">
+    <div class="stage" data-s="load"><div class="sname">Ham ekran metni<small>CSV'deki tüm satırlar</small></div><div class="track"><div class="fill"></div></div><div class="sval">–</div></div>
+    <div class="stage" data-s="filter"><div class="sname">Gürültü filtresi<small>Arayüz yazıları atıldı</small></div><div class="track"><div class="fill"></div></div><div class="sval">–</div></div>
+    <div class="stage" data-s="dedupe"><div class="sname">Tekilleştirme<small>Tekrar eden içerik bir kez</small></div><div class="track"><div class="fill"></div></div><div class="sval">–</div></div>
+    <div class="stage" data-s="rules"><div class="sname">Kural motoru<small>Sözlük + Türkçe normalizasyon</small></div><div class="track"><div class="fill"></div></div><div class="sval">–</div></div>
+    <div class="stage" data-s="ai"><div class="sname">Yapay zekâ<small id="aiModel">Bağlam analizi</small></div><div class="track"><div class="fill"></div></div><div class="sval">–</div></div>
+  </div>
+  <div class="callout hidden" id="callout"></div>
+  <div class="banner hidden" id="banner"></div>
+</section>
+
+<section class="hidden" id="resSec">
+  <h2>Bulgular</h2>
+  <p class="hint" id="resHint"></p>
+  <div class="sum" id="sum"></div>
+  <div class="filters">
+    <select id="fSev" aria-label="Seviye"><option value="">Tüm seviyeler</option><option value="critical">Kritik</option><option value="high">Yüksek</option><option value="medium">Orta</option><option value="low">Düşük</option></select>
+    <select id="fCat" aria-label="Kategori"><option value="">Tüm kategoriler</option></select>
+    <select id="fApp" aria-label="Uygulama"><option value="">Tüm uygulamalar</option></select>
+    <select id="fSrc" aria-label="Kaynak"><option value="">Tüm kaynaklar</option><option value="kural">Sadece kural</option><option value="ai">Sadece AI</option><option value="ikisi">Kural + AI</option></select>
+    <input id="fQ" placeholder="Metinde ara" aria-label="Metinde ara">
+    <button class="btn" id="dlJson" type="button">JSON indir</button>
+    <button class="btn" id="dlCsv" type="button">CSV indir</button>
+  </div>
+  <div class="list" id="list"></div>
+</section>
+
+<p class="foot">GiDA BAP projesi · içerik analiz modülü demo sürümü. Bulgulara tıklayınca ekranın ham metni açılır.</p>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const SEV = {critical:["Kritik","--crit"],high:["Yüksek","--high"],medium:["Orta","--med"],low:["Düşük","--low"]};
+const KIND = {caption:"gönderi açıklaması",comment:"yorum",text:"ekran metni",audio:"şarkı / ses",author:"hesap adı",username:"kullanıcı adı",ad:"reklam veren"};
+const SRC = {kural:"Kural",ai:"AI",ikisi:"Kural + AI"};
+const nf = n => Number(n).toLocaleString("tr-TR");
+const fmt = iso => new Date(iso).toLocaleString("tr-TR",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",timeZone:"Europe/Istanbul"});
+const esc = s => String(s ?? "").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let RESULT = null, RAW = 0, UNIQ = 0;
+
+// AI status
+fetch("api/health").then(r=>r.json()).then(h=>{
+  const c=$("aiChip"), t=$("aiChipText");
+  if(h.ai.mode==="live"){c.classList.add("on");t.textContent=`AI açık · ${h.ai.model}`}
+  else if(h.ai.mode==="mock"){c.classList.add("on");t.textContent=`AI test modu (mock)`}
+  else{c.classList.add("off");t.textContent="AI kapalı · sadece kural motoru";$("useAi").checked=false;$("useAi").disabled=true}
+}).catch(()=>{$("aiChipText").textContent="Sunucuya ulaşılamadı"});
+
+// drop
+const drop=$("drop");
+["dragenter","dragover"].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.add("over")}));
+["dragleave","drop"].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.remove("over")}));
+drop.addEventListener("drop",ev=>{const f=ev.dataTransfer.files[0]; if(f) start(f)});
+drop.addEventListener("keydown",ev=>{if(ev.key==="Enter"||ev.key===" "){ev.preventDefault();$("file").click()}});
+$("file").addEventListener("change",ev=>{const f=ev.target.files[0]; if(f) start(f); ev.target.value=""});
+
+function resetUI(){
+  $("err").classList.add("hidden");
+  $("resSec").classList.add("hidden");
+  $("callout").classList.add("hidden");
+  $("banner").classList.add("hidden");
+  document.querySelectorAll(".stage").forEach(s=>{s.className="stage";s.querySelector(".fill").style.width="0";s.querySelector(".sval").innerHTML="–"});
+}
+function showErr(m){$("err").textContent=m;$("err").classList.remove("hidden")}
+function stage(name,html,frac,active){
+  const s=document.querySelector(`.stage[data-s="${name}"]`);
+  document.querySelectorAll(".stage.active").forEach(x=>x.classList.remove("active"));
+  s.classList.add("live"); if(active) s.classList.add("active");
+  if(html!=null) s.querySelector(".sval").innerHTML=html;
+  if(frac!=null) s.querySelector(".fill").style.width=Math.max(frac*100,frac>0?1.5:0)+"%";
+}
+// log ölçek: 744K ile 11K aynı çubukta okunabilsin
+const lf = c => RAW? Math.log10(1+c)/Math.log10(1+RAW) : 0;
+
+async function start(file){
+  resetUI();
+  drop.classList.add("compact");
+  $("dropTitle").textContent=file.name;
+  $("dropSub").textContent=`${file.size<1024?file.size+" B":(file.size/1024).toFixed(0)+" KB"} · başka bir dosya bırakabilir ya da tıklayabilirsiniz`;
+  $("pipeSec").classList.remove("hidden");
+  const fd=new FormData(); fd.append("file",file); fd.append("use_ai",$("useAi").checked);
+  let res;
+  try{ res=await fetch("api/analyze",{method:"POST",body:fd}) }catch(e){ return showErr("Sunucuya bağlanılamadı. Servis çalışıyor mu?") }
+  if(!res.ok){ let m=`Sunucu hatası (${res.status})`; try{m=(await res.json()).error||m}catch{} return showErr(m) }
+  const reader=res.body.getReader(), dec=new TextDecoder(); let buf="";
+  for(;;){
+    const {done,value}=await reader.read(); if(done) break;
+    buf+=dec.decode(value,{stream:true});
+    let i; while((i=buf.indexOf("\n"))>=0){ const line=buf.slice(0,i).trim(); buf=buf.slice(i+1); if(line) onEvent(JSON.parse(line)) }
+  }
+}
+
+function onEvent(e){
+  if(e.type==="error"){ document.querySelectorAll(".stage.active").forEach(x=>x.classList.remove("active")); return showErr(e.message) }
+  if(e.type==="result") return showResult(e);
+  switch(e.stage){
+    case "load": RAW=e.chars; stage("load",`<b>${nf(e.chars)}</b> karakter<small>${nf(e.rows)} satır${e.rows_bad_time?` · ${e.rows_bad_time} hatalı tarih atlandı`:""}</small>`,1); break;
+    case "filter": stage("filter",`<b>${nf(e.chars)}</b> karakter<small>%${e.removed_pct} gürültü atıldı</small>`,lf(e.chars)); break;
+    case "dedupe": UNIQ=e.chars; stage("dedupe",`<b>${nf(e.chars)}</b> karakter<small>${nf(e.segments)} benzersiz parça</small>`,lf(e.chars)); break;
+    case "rules": stage("rules",`<b>${e.hits}</b> eşleşme<small>tüm benzersiz parçalar tarandı</small>`,lf(UNIQ)); break;
+    case "ai_start": $("aiModel").textContent=e.mode==="mock"?"Test modu (mock)":e.model;
+      stage("ai",`<b>${nf(e.chars)}</b> karakter<small>${nf(e.candidates)} parça · ${e.batches} istek${e.cached?` · ${e.cached} önbellekte`:""}</small>`,lf(e.chars),true);
+      if(RAW) { const c=$("callout"); const pct=100*e.chars/RAW; c.innerHTML=`Yapay zekâya ham verinin ${pct<30?"yalnızca ":""}<b>%${pct.toFixed(1)}</b>'i gönderiliyor. Arayüz yazıları ve tekrarlar kural tabanlı filtrede ayıklandı.`; c.classList.remove("hidden") }
+      break;
+    case "ai_progress": { const s=document.querySelector('.stage[data-s="ai"] small'); if(s) s.textContent=`${e.done}/${e.batches} istek tamamlandı`; break }
+    case "ai_done": {
+      const s=document.querySelector('.stage[data-s="ai"]'); s.classList.remove("active");
+      if(e.state==="off"){ stage("ai",`kapalı`,0) }
+      else stage("ai",`<b>${e.hits}</b> AI bulgusu<small>${e.calls} başarılı${e.failed_batches?` · ${e.failed_batches} başarısız`:""} · ${e.cached} önbellek</small>`,null);
+      const b=$("banner"); b.className="banner "+(e.state==="running"?"ok":e.state);
+      const title={ok:"Yapay zekâ analizi tamamlandı",partial:"Yapay zekâ analizi kısmen tamamlandı",quota:"Yapay zekâ kotası doldu",off:"Yapay zekâ katmanı devre dışı",error:"Yapay zekâ analizi başarısız"}[e.state]||"Yapay zekâ";
+      const tail = e.state==="ok" ? "" : " Kural motoru tüm veriyi taradı; bulgular aşağıda.";
+      b.innerHTML=`<div><b>${title}</b>${esc(e.message)}${tail}</div>`; b.classList.remove("hidden");
+      break; }
+  }
+}
+
+function showResult(r){
+  RESULT=r; const m=r.meta, F=r.findings;
+  $("resSec").classList.remove("hidden");
+  $("resHint").textContent=`${nf(m.rows_valid)} kayıt · ${m.devices} cihaz · ${Object.keys(m.apps).join(", ")} · ${fmt(m.range[0])} – ${fmt(m.range[1])} · ${m.elapsed_s} sn`;
+  const n=s=>F.filter(f=>f.severity===s).length, tot=F.length||1;
+  const topCat=Object.entries(m.by_category).sort((a,b)=>b[1]-a[1])[0];
+  const appCount={}; F.forEach(f=>appCount[f.app]=(appCount[f.app]||0)+(f.severity==="critical"?4:f.severity==="high"?3:f.severity==="medium"?2:1));
+  const topApp=Object.entries(appCount).sort((a,b)=>b[1]-a[1])[0];
+  $("sum").innerHTML=`
+    <div><b>${F.length}</b><span>bulgu</span><div class="sevbar">${["critical","high","medium","low"].map(s=>`<i style="width:${100*n(s)/tot}%;background:var(${SEV[s][1]})" title="${SEV[s][0]}: ${n(s)}"></i>`).join("")}</div></div>
+    <div><b>${n("critical")+n("high")}</b><span>kritik ve yüksek</span></div>
+    <div><b>${topCat?esc(topCat[0]):"–"}</b><span>en sık kategori</span></div>
+    <div><b>${topApp?esc(topApp[0]):"–"}</b><span>en riskli uygulama</span></div>`;
+  fill("fCat",[...new Set(F.map(f=>f.category_label))]);
+  fill("fApp",[...new Set(F.map(f=>f.app))]);
+  render();
+}
+function fill(id,vals){const s=$(id); s.length=1; vals.sort().forEach(v=>s.add(new Option(v,v)))}
+
+function hl(text,terms){
+  let out=esc(text);
+  (terms||[]).filter(t=>t&&t.length>1).sort((a,b)=>b.length-a.length).forEach(t=>{
+    const rx=new RegExp(esc(t).replace(/[.*+?^${}()|[\]\\]/g,"\\$&"),"giu");
+    out=out.replace(rx,x=>`<mark>${x}</mark>`);
+  });
+  return out;
+}
+function filtered(){
+  const s=$("fSev").value,c=$("fCat").value,a=$("fApp").value,src=$("fSrc").value,q=$("fQ").value.toLocaleLowerCase("tr");
+  return RESULT.findings.filter(f=>(!s||f.severity===s)&&(!c||f.category_label===c)&&(!a||f.app===a)&&(!src||f.source===src)&&(!q||f.text.toLocaleLowerCase("tr").includes(q)));
+}
+function render(){
+  const L=filtered();
+  $("list").innerHTML = L.length ? L.map(f=>{
+    const [lab,col]=SEV[f.severity];
+    const seen = f.count>1 ? `${f.count} kez görüldü · ilk ${fmt(f.first_seen)} · son ${fmt(f.last_seen)}` : `1 kez görüldü`;
+    return `<details class="f" style="--sev:var(${col})"><summary>
+      <div class="ftop"><span class="sev">${lab}</span><span class="cat">${esc(f.category_label)}</span><span class="src ${f.source}">${SRC[f.source]}</span>
+      <span>${fmt(f.first_seen)}</span><span>${esc(f.app)}</span><span>cihaz …${esc(f.device)}</span><span>${KIND[f.kind]||esc(f.kind)}</span></div>
+      <div class="ftext">${hl(f.text,f.terms)}</div>
+      ${f.reason?`<div class="why">${esc(f.reason)}</div>`:""}
+      <div class="fmeta">${f.terms&&f.terms.length?`Tetikleyen: ${f.terms.map(esc).join(", ")} · `:""}${seen}</div>
+      </summary><div class="ctx">${esc(f.context)}</div></details>`;
+  }).join("") : `<div class="empty">${RESULT.findings.length?"Bu filtrelerle eşleşen bulgu yok.":"Bu dosyada sakıncalı içerik bulunmadı."}</div>`;
+}
+["fSev","fCat","fApp","fSrc"].forEach(id=>$(id).onchange=render); $("fQ").oninput=render;
+
+function download(name,type,data){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([data],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+$("dlJson").onclick=()=>download("gida_bulgular.json","application/json",JSON.stringify(RESULT,null,1));
+$("dlCsv").onclick=()=>{
+  const cols=["first_seen","last_seen","count","device","app","db_category","category_label","severity","source","kind","text","terms","reason"];
+  const q=v=>`"${String(Array.isArray(v)?v.join("; "):v??"").replace(/"/g,'""')}"`;
+  download("gida_bulgular.csv","text/csv","﻿"+[cols.join(","),...filtered().map(f=>cols.map(c=>q(f[c])).join(","))].join("\n"));
+};
+</script>
+</body>
+</html>

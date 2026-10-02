@@ -1,0 +1,8 @@
+.env
+.venv/
+data/ai_cache.json
+data/*.csv
+eval/*.jsonl
+__pycache__/
+findings.json
+demo/gida-risk-demo.html

@@ -1,0 +1,5 @@
+analiz.152-70-40-87.nip.io {
+    reverse_proxy analyzer:8090 {
+        flush_interval -1   # NDJSON ilerleme akışı tamponlanmadan gelsin
+    }
+}

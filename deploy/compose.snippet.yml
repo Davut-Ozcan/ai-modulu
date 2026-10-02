@@ -1,0 +1,11 @@
+# Oracle VM'deki mevcut docker-compose.yml'ye services altına ekle
+  analyzer:
+    build: ./gida-analyzer
+    restart: unless-stopped
+    env_file: ./gida-analyzer/.env
+    volumes:
+      - analyzer_cache:/srv/cache
+    mem_limit: 300m
+
+# en alttaki volumes: bloğuna ekle
+#   analyzer_cache:

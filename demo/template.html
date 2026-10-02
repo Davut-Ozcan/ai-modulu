@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GiDA Risk Akışı</title>
+<style>
+:root{--bg:#f6f5f2;--card:#fff;--ink:#1c1c1a;--mute:#6b6a64;--line:#e4e2dc;
+--crit:#b3261e;--high:#d0590b;--med:#b58a00;--low:#6b7d8f;--accent:#2d5be3}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141413;--card:#1e1e1c;--ink:#ecebe6;--mute:#9a988f;--line:#2f2e2b;--crit:#f2665c;--high:#f08a3e;--med:#e0b62e;--low:#8fa3b8;--accent:#7b9cff}}
+:root[data-theme="dark"]{--bg:#141413;--card:#1e1e1c;--ink:#ecebe6;--mute:#9a988f;--line:#2f2e2b;--crit:#f2665c;--high:#f08a3e;--med:#e0b62e;--low:#8fa3b8;--accent:#7b9cff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:1100px;margin:0 auto;padding:24px 16px 60px}
+header{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+h1{font-size:22px;margin:0}
+.sub{color:var(--mute);font-size:13px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.tile b{display:block;font-size:24px;font-variant-numeric:tabular-nums}
+.tile span{color:var(--mute);font-size:12px}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+select,input{background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font:inherit;font-size:14px}
+input{flex:1;min-width:160px}
+.list{display:flex;flex-direction:column;gap:8px}
+.row{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--sev);border-radius:10px;padding:12px 14px;cursor:pointer}
+.row .top{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--mute)}
+.badge{font-size:11px;font-weight:600;letter-spacing:.02em;text-transform:uppercase;color:var(--sev);border:1px solid var(--sev);border-radius:999px;padding:1px 8px}
+.cat{font-weight:600;color:var(--ink)}
+.app{display:inline-flex;align-items:center;gap:5px}
+.app i{width:14px;height:14px;border-radius:4px;background:linear-gradient(45deg,#f9a825,#e91e63,#6a1b9a);display:inline-block}
+.text{margin-top:6px;font-size:15px;word-break:break-word}
+mark{background:color-mix(in srgb,var(--sev) 22%,transparent);color:inherit;border-radius:3px;padding:0 2px}
+.meta{margin-top:6px;font-size:12px;color:var(--mute)}
+.ctx{display:none;margin-top:10px;font:12px/1.5 ui-monospace,Menlo,monospace;color:var(--mute);background:var(--bg);border-radius:8px;padding:8px 10px;white-space:pre-wrap;word-break:break-word}
+.row.open .ctx{display:block}
+.empty{color:var(--mute);text-align:center;padding:30px}
+.foot{margin-top:24px;font-size:12px;color:var(--mute)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div><h1>Risk Akışı</h1><div class="sub" id="sub"></div></div>
+  <div class="sub">Model: <span id="mv"></span></div>
+</header>
+<div class="tiles" id="tiles"></div>
+<div class="filters">
+  <select id="fSev"><option value="">Tüm seviyeler</option><option value="critical">Kritik</option><option value="high">Yüksek</option><option value="medium">Orta</option><option value="low">Düşük</option></select>
+  <select id="fCat"><option value="">Tüm kategoriler</option></select>
+  <select id="fDev"><option value="">Tüm cihazlar</option></select>
+  <input id="fQ" placeholder="Metinde ara…">
+</div>
+<div class="list" id="list"></div>
+<div class="foot">Satıra tıklayınca ekranın ham metni (bağlam) açılır. Aynı içerik tekrar görüldüğünde tek satırda toplanır.</div>
+</div>
+<script>
+const DATA = /*DATA*/null;
+const SEV = {critical:["Kritik","--crit",3],high:["Yüksek","--high",2],medium:["Orta","--med",1],low:["Düşük","--low",0]};
+const KIND = {caption:"gönderi açıklaması",comment:"yorum",text:"ekran metni",audio:"şarkı/ses",author:"hesap adı",username:"kullanıcı adı",ad:"reklam veren"};
+const $ = id => document.getElementById(id);
+const fmt = iso => new Date(iso).toLocaleString("tr-TR",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit",timeZone:"Europe/Istanbul"});
+const esc = s => s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const F = DATA.findings, M = DATA.meta;
+
+$("mv").textContent = M.model_version;
+$("sub").textContent = `${M.captures} ekran kaydı · ${M.devices} cihaz · ${fmt(M.range[0])} – ${fmt(M.range[1])}`;
+
+const cats = [...new Map(F.map(f=>[f.category,f.category_label])).entries()];
+cats.forEach(([k,v])=>$("fCat").insertAdjacentHTML("beforeend",`<option value="${k}">${v}</option>`));
+[...new Set(F.map(f=>f.device))].forEach(d=>$("fDev").insertAdjacentHTML("beforeend",`<option value="${d}">Cihaz …${d}</option>`));
+
+function tiles(list){
+  const n = s => list.filter(f=>f.severity===s).length;
+  const apps = {}; list.forEach(f=>apps[f.app]=(apps[f.app]||0)+1);
+  const topApp = Object.entries(apps).sort((a,b)=>b[1]-a[1])[0];
+  const topCat = Object.entries(list.reduce((a,f)=>(a[f.category_label]=(a[f.category_label]||0)+1,a),{})).sort((a,b)=>b[1]-a[1])[0];
+  $("tiles").innerHTML = [
+    [list.length,"bulgu"],[n("critical")+n("high"),"kritik + yüksek"],
+    [topCat?topCat[0]:"—","en sık kategori"],[topApp?topApp[0]:"—","en riskli uygulama"],
+    [M.segments.toLocaleString("tr-TR"),"analiz edilen metin parçası"]
+  ].map(([b,s])=>`<div class="tile"><b>${b}</b><span>${s}</span></div>`).join("");
+}
+
+function hl(text, terms){
+  let out = esc(text);
+  terms.filter(t=>t.length>1).sort((a,b)=>b.length-a.length).forEach(t=>{
+    const rx = new RegExp(esc(t).replace(/[.*+?^${}()|[\]\\]/g,"\\$&"),"giu");
+    out = out.replace(rx, m=>`<mark>${m}</mark>`);
+  });
+  return out;
+}
+
+function render(){
+  const s=$("fSev").value,c=$("fCat").value,d=$("fDev").value,q=$("fQ").value.toLocaleLowerCase("tr");
+  const list = F.filter(f=>(!s||f.severity===s)&&(!c||f.category===c)&&(!d||f.device===d)&&(!q||f.text.toLocaleLowerCase("tr").includes(q)));
+  tiles(list);
+  $("list").innerHTML = list.length ? list.map(f=>{
+    const [lab,col] = SEV[f.severity];
+    const span = f.count>1 ? `${f.count} kez görüldü · ilk ${fmt(f.first_seen)} · son ${fmt(f.last_seen)}` : `1 kez görüldü`;
+    return `<div class="row" style="--sev:var(${col})" onclick="this.classList.toggle('open')">
+      <div class="top"><span class="badge">${lab}</span><span class="cat">${esc(f.category_label)}</span>
+      <span>${fmt(f.first_seen)}</span><span class="app"><i></i>${esc(f.app)}</span><span>Cihaz …${f.device}</span><span>· ${KIND[f.kind]||f.kind}</span></div>
+      <div class="text">${hl(f.text,f.terms)}</div>
+      <div class="meta">Yakalanan: ${f.terms.map(esc).join(", ")} · skor ${f.score} · ${span}</div>
+      <div class="ctx">${esc(f.context)}</div></div>`;
+  }).join("") : `<div class="empty">Bu filtrelerle bulgu yok.</div>`;
+}
+["fSev","fCat","fDev"].forEach(id=>$(id).onchange=render); $("fQ").oninput=render;
+render();
+</script>
+</body>
+</html>
